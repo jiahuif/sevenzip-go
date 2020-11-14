@@ -28,6 +28,7 @@ import (
 	"unsafe"
 
 	"github.com/pkg/errors"
+	wchar "github.com/vitaminwater/cgo.wchar"
 )
 
 type ReaderAtCloser interface {
@@ -255,13 +256,16 @@ type Archive struct {
 	lib  *Lib
 }
 
-func (lib *Lib) OpenArchive(in *InStream, bySignature bool) (*Archive, error) {
+func (lib *Lib) OpenArchive(in *InStream, password string, bySignature bool) (*Archive, error) {
 	cBySignature := C.int32_t(0)
 	if bySignature {
 		cBySignature = 1
 	}
-
-	arch := C.libc7zip_archive_open(lib.lib, in.strm, cBySignature)
+	pw, err := wchar.FromGoString(password)
+	if err != nil {
+		return nil, err
+	}
+	arch := C.libc7zip_archive_open(lib.lib, in.strm, (*C.wchar_t)(pw.Pointer()), cBySignature)
 	if arch == nil {
 		err := coalesceErrors(in.Error(), lib.Error(), ErrUnknownError)
 		return nil, errors.WithStack(err)
